@@ -1,6 +1,6 @@
 # n8n workflows for HVAC and plumbing shops
 
-Three workflows I use or set up for contractors. Free, import them and change the names/numbers.
+Three workflows I built for contractors. Free, import them and change the names/numbers.
 
 | File | What it does |
 |---|---|
