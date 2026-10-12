@@ -1,0 +1,173 @@
+{
+  "name": "Missed call text-back for contractors",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "missed-call",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "952c7d97-aed8-46fa-9135-f04f38092d07",
+      "name": "Twilio call status",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.body.CallStatus }}",
+              "rightValue": "no-answer|busy|failed|canceled",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "fd27695a-4785-4409-84a2-529c0cb9701b",
+      "name": "Was it missed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const tz='America/Chicago';\nconst now=new Date(new Date().toLocaleString('en-US',{timeZone:tz}));\nconst h=now.getHours(), d=now.getDay();\nconst open = d>=1 && d<=5 && h>=7 && h<18;\nreturn [{json:{...$json, open, caller:$json.body.From, line:$json.body.To}}];"
+      },
+      "id": "bb4b5807-cacd-4648-a609-392a6124629e",
+      "name": "Business hours?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "from": "={{ $json.line }}",
+        "to": "={{ $json.caller }}",
+        "message": "={{ $json.open ? \"Hi, this is Acme Heating & Plumbing. Sorry we missed you, we're on a job. What's going on? Reply here and we'll call you right back.\" : \"Hi, Acme Heating & Plumbing here. We're closed right now. If you have no heat, no AC in a heat wave or water leaking, reply URGENT and the on-call tech will call you. Otherwise reply with what you need and we'll call first thing.\" }}",
+        "options": {}
+      },
+      "id": "b9610b83-53e6-459f-87f2-c73a8f89e038",
+      "name": "Text the caller",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        660,
+        220
+      ],
+      "credentials": {
+        "twilioApi": {
+          "id": "",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "from": "={{ $('Business hours?').item.json.line }}",
+        "to": "+13125550100",
+        "message": "=Missed call from {{ $('Business hours?').item.json.caller }} at {{ $now.setZone('America/Chicago').toFormat('h:mm a') }}. Auto-text sent.",
+        "options": {}
+      },
+      "id": "e5e6863e-10dc-49ac-a2cc-f0f38a473403",
+      "name": "Tell the office",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        880,
+        220
+      ],
+      "credentials": {
+        "twilioApi": {
+          "id": "",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Missed call text-back\nPoint your Twilio number's **Call status changes** webhook to this workflow's URL.\n1. Add Twilio credentials\n2. Change the business name, hours and the office phone (+13125550100)\n3. Activate",
+        "height": 220,
+        "width": 420
+      },
+      "id": "9b73200f-41db-4c96-98ed-f1e0acc0fb08",
+      "name": "Sticky",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Twilio call status": {
+      "main": [
+        [
+          {
+            "node": "Was it missed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Was it missed?": {
+      "main": [
+        [
+          {
+            "node": "Business hours?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Business hours?": {
+      "main": [
+        [
+          {
+            "node": "Text the caller",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text the caller": {
+      "main": [
+        [
+          {
+            "node": "Tell the office",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
