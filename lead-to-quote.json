@@ -1,0 +1,230 @@
+{
+  "name": "Website lead to rough quote (HVAC / plumbing)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-lead",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "b2fc3e1e-1b22-4c79-a73c-c0c4a4ede355",
+      "name": "Lead form",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Edit this price book for your shop\nconst book = {\n  'ac tune-up':        [89, 149],\n  'furnace tune-up':   [89, 149],\n  'no heat':           [129, 450],\n  'no cooling':        [129, 450],\n  'water heater replacement': [1400, 2600],\n  'drain clog':        [149, 350],\n  'leak':              [150, 600],\n  'new ac install':    [5500, 9500],\n};\nconst b = $json.body || $json;\nconst job = String(b.service||'').toLowerCase().trim();\nconst range = book[job];\nconst afterHours = String(b.when||'').toLowerCase().includes('asap');\nconst trip = afterHours ? 99 : 0;\nreturn [{json:{\n  name:b.name, email:b.email, phone:b.phone, address:b.address, service:job, notes:b.notes||'',\n  known: !!range,\n  low: range ? range[0]+trip : null,\n  high: range ? range[1]+trip : null,\n  afterHours\n}}];"
+      },
+      "id": "4e1736d2-a6b2-44d1-8e6e-08506827d9cc",
+      "name": "Price it",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.known }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b42155a0-83f5-4ccd-87bb-2ac4b9c5c04e",
+      "name": "Have a price?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "office@example.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=Your {{ $json.service }} estimate",
+        "emailFormat": "text",
+        "text": "=Hi {{ $json.name }},\n\nThanks for reaching out. For {{ $json.service }} most jobs like yours land between ${{ $json.low }} and ${{ $json.high }}{{ $json.afterHours ? ' (includes after-hours trip fee)' : '' }}. The tech confirms the exact price on site before any work starts.\n\nReply with a good time and we'll get you on the schedule.\n\nAcme Heating & Plumbing",
+        "options": {}
+      },
+      "id": "a93ee28f-7b21-4840-8d99-db1445d5a178",
+      "name": "Email rough quote",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        700,
+        200
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "e9821d3d-a822-4755-ad6d-22e10bcae4d8",
+      "name": "Log lead",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        940,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "office@example.com",
+        "toEmail": "office@example.com",
+        "subject": "=New lead needs a call: {{ $json.name }}",
+        "emailFormat": "text",
+        "text": "={{ $json.name }} / {{ $json.phone }} / {{ $json.address }}\nService: {{ $json.service }}\nNotes: {{ $json.notes }}",
+        "options": {}
+      },
+      "id": "b5dd2a28-7da6-4ffe-a7b6-75461c2c820c",
+      "name": "Office: needs a person",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        700,
+        420
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Lead to rough quote\nPOST your website form here (name, email, phone, address, service, when, notes).\nKnown services get a price range by email right away; anything else goes to the office.\nEdit the price book in **Price it**.",
+        "height": 220,
+        "width": 440
+      },
+      "id": "4980c322-0190-410f-abd0-e172d9dc9028",
+      "name": "Sticky",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Lead form": {
+      "main": [
+        [
+          {
+            "node": "Price it",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Price it": {
+      "main": [
+        [
+          {
+            "node": "Have a price?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Have a price?": {
+      "main": [
+        [
+          {
+            "node": "Email rough quote",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Office: needs a person",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email rough quote": {
+      "main": [
+        [
+          {
+            "node": "Log lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Office: needs a person": {
+      "main": [
+        [
+          {
+            "node": "Log lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
